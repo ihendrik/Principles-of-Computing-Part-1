@@ -10,4 +10,7 @@ There are 3 phases that need to be done for this Mini Project
 ## Mini Project 03 - Monte Carlo Tic-Tac-Toe Player
 Using given template and devined variable (TTTBoard, provided, etc) to create a Tic Tac Toe game. Create the AI using Monte Carlo Algorithm.
 
-## Mini Project 04 - 
+## Mini Project 04 - Yahtzee
+For this mini-project, we will implement a strategy function designed to help you choose which dice to hold after your second roll during the first turn of a game of Yahtzee. This function will consider all possible choices of dice to hold and recommend the choice that maximizes the expected value of your score after the final roll.
+
+## Mini Project 05 - 
