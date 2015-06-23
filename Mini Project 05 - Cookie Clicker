@@ -1,0 +1,239 @@
+"""
+Cookie Clicker Simulator
+only got 86.7 on the OWL Test
+"""
+
+import simpleplot
+
+# Used to increase the timeout, if necessary
+import codeskulptor
+codeskulptor.set_timeout(20)
+
+import poc_clicker_provided as provided
+
+# Constants
+SIM_TIME = 10.0
+
+class ClickerState:
+    """
+    Simple class to keep track of the game state.
+    """
+    
+    def __init__(self):
+        self._total_cookies=0.0
+        self._curr_cookies=0.0
+        self._curr_time=0.0
+        self._curr_cps=1.0
+        self._item_bought=None
+        self._cost_item=0.0
+        self._history=[(self._curr_time,self._item_bought,self._cost_item,self._total_cookies)]
+        
+    def __str__(self):
+        """
+        Return human readable state
+        """
+        string_str="Time: "+str(self._curr_time)
+        string_str+=" Current Cookies: "+str(self._curr_cookies)
+        string_str+=" CPS: "+str(self._curr_cps)
+        string_str+=" Total Cookies: "+str(self._total_cookies)
+        string_str+=" History (length: "+str(len(self._history))+" :"+str(self._history)
+        return string_str
+    
+    def get_cookies(self):
+        """
+        Return current number of cookies 
+        (not total number of cookies)
+        
+        Should return a float
+        """
+        return self._curr_cookies
+    
+    def get_cps(self):
+        """
+        Get current CPS
+
+        Should return a float
+        """
+        return self._curr_cps
+    
+    def get_time(self):
+        """
+        Get current time
+
+        Should return a float
+        """
+        return self._curr_time
+    
+    def get_history(self):
+        """
+        Return history list
+
+        History list should be a list of tuples of the form:
+        (time, item, cost of item, total cookies)
+
+        For example: [(0.0, None, 0.0, 0.0)]
+
+        Should return a copy of any internal data structures,
+        so that they will not be modified outside of the class.
+        """
+        return self._history
+
+    def time_until(self, cookies):
+        """
+        Return time until you have the given number of cookies
+        (could be 0.0 if you already have enough cookies)
+
+        Should return a float with no fractional part
+        """
+        if(self._curr_cookies<=cookies):
+            return float(int((cookies-self._curr_cookies)/self._curr_cps))
+        return 0.0
+    
+    def wait(self, time):
+        """
+        Wait for given amount of time and update state
+
+        Should do nothing if time <= 0.0
+        """
+        if(time>0):
+            self._curr_time+=time
+            self._curr_cookies+=(time*self._curr_cps)
+            self._total_cookies+=(time*self._curr_cps)
+    
+    def buy_item(self, item_name, cost, additional_cps):
+        """
+        Buy an item and update state
+
+        Should do nothing if you cannot afford the item
+        """
+        if(self._curr_cookies>=cost):
+            self._item_bought=item_name
+            self._cost_item=cost
+            self._curr_cookies-=cost
+            self._curr_cps+=additional_cps
+            self._history.append((self._curr_time,self._item_bought,self._cost_item,self._total_cookies))
+   
+    
+def simulate_clicker(build_info, duration, strategy):
+    """
+    Function to run a Cookie Clicker game for the given
+    duration with the given strategy.  Returns a ClickerState
+    object corresponding to the final state of the game.
+    """
+
+    # Replace with your code
+    build_info_clone=build_info.clone()
+    clicker_state=ClickerState()
+    while clicker_state.get_time()<=duration:
+        item= strategy(clicker_state.get_cookies(),clicker_state.get_cps(),clicker_state.get_history(), duration - clicker_state.get_time(),build_info_clone)
+        if item== None:
+            clicker_state.wait(duration-clicker_state.get_time()) 
+            break
+        else:
+            time_needed=clicker_state.time_until(build_info_clone.get_cost(item))
+            if(clicker_state.get_time()+time_needed>duration):
+                clicker_state.wait(duration-clicker_state.get_time()) 
+                break
+            else:
+                clicker_state.wait(time_needed)
+                clicker_state.buy_item(item,build_info_clone.get_cost(item), build_info_clone.get_cps(item))
+                build_info_clone.update_item(item)  
+    return clicker_state
+
+
+def strategy_cursor_broken(cookies, cps, history, time_left, build_info):
+    """
+    Always pick Cursor!
+
+    Note that this simplistic (and broken) strategy does not properly
+    check whether it can actually buy a Cursor in the time left.  Your
+    simulate_clicker function must be able to deal with such broken
+    strategies.  Further, your strategy functions must correctly check
+    if you can buy the item in the time left and return None if you
+    can't.
+    """
+    return "Cursor"
+
+def strategy_none(cookies, cps, history, time_left, build_info):
+    """
+    Always return None
+
+    This is a pointless strategy that will never buy anything, but
+    that you can use to help debug your simulate_clicker function.
+    """
+    return None
+
+def strategy_cheap(cookies, cps, history, time_left, build_info):
+    """
+    Always buy the cheapest item you can afford in the time left.
+    """
+    cheapest_item=float('inf')
+    build_items=build_info.build_items()
+    for build_item in build_items:
+        if build_info.get_cost(build_item)<=cheapest_item:
+            cheapest_item=build_info.get_cost(build_item)
+            item=build_item
+    if cheapest_item > (time_left*cps+cookies):
+        return None
+    else:
+        return item
+
+def strategy_expensive(cookies, cps, history, time_left, build_info):
+    """
+    Always buy the most expensive item you can afford in the time left.
+    """
+    expensive_item=float('-inf')
+    build_items=build_info.build_items()
+    for build_item in build_items:
+        if build_info.get_cost(build_item)>=expensive_item and build_info.get_cost(build_item)<=(time_left * cps + cookies):
+            expensive_item=build_info.get_cost(build_item)
+            item=build_item
+    if expensive_item == float('-inf'):
+        return None
+    else:
+        return item
+
+def strategy_best(cookies, cps, history, time_left, build_info):
+    """
+    The best strategy that you are able to implement.
+    """
+    best_value=float('-inf')
+    build_items=build_info.build_items()
+    for build_item in build_items:
+        if(build_info.get_cps(build_item)/build_info.get_cost(build_item)>= best_value) and (build_info.get_cost(build_item)<=(time_left * cps + cookies)):
+            best_value=build_info.get_cps(build_item)/build_info.get_cost(build_item)
+            item=build_item
+    if best_value==float('-inf'):
+        return None
+    else: return item
+       
+def run_strategy(strategy_name, time, strategy):
+    """
+    Run a simulation for the given time with one strategy.
+    """
+    state = simulate_clicker(provided.BuildInfo(), time, strategy)
+    print strategy_name, ":", state
+
+    # Plot total cookies over time
+
+    # Uncomment out the lines below to see a plot of total cookies vs. time
+    # Be sure to allow popups, if you do want to see it
+
+    # history = state.get_history()
+    # history = [(item[0], item[3]) for item in history]
+     #simpleplot.plot_lines(strategy_name, 1000, 400, 'Time', 'Total Cookies', [history], True)
+
+def run():
+    """
+    Run the simulator.
+    """    
+    run_strategy("Cursor", SIM_TIME, strategy_cursor_broken)
+
+    # Add calls to run_strategy to run additional strategies
+    # run_strategy("Cheap", SIM_TIME, strategy_cheap)
+    # run_strategy("Expensive", SIM_TIME, strategy_expensive)
+    # run_strategy("Best", SIM_TIME, strategy_best)
+#run()
+
+
+
